@@ -37,6 +37,12 @@ export interface GameStore {
   readSnapshots(code: string): Promise<Array<{ round: number; state: GameState }>>
 
   list(): Promise<GameSummary[]>
+
+  /** Removes a game and its snapshots so finished partidas do not pile up. */
+  delete(code: string): Promise<void>
+
+  /** Drops finished games older than `maxAgeMs` (default 2 hours). */
+  purgeFinished(maxAgeMs?: number): Promise<number>
 }
 
 export class GameNotFoundError extends Error {

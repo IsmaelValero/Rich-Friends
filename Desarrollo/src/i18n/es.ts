@@ -9,6 +9,9 @@ export const es: Translations = {
   'app.name': 'Rich Friends',
   'app.tagline': 'Una fortuna. Ni una persona honrada.',
   'app.leave': 'Salir',
+  'app.leaveConfirm': '¿Seguro que quieres salir y acabar la partida?',
+  'app.leaveConfirmYes': 'Sí, acabar la partida',
+  'app.leaveConfirmNo': 'Cancelar',
 
   'nav.today': 'Hoy',
   'nav.market': 'Mercado',
@@ -51,7 +54,7 @@ export const es: Translations = {
   'lobby.codeLabel': 'Código',
   'lobby.duration': 'Esta partida dura {days} días. Unos minutos cada día.',
   'lobby.players': 'Jugadores ({count}/{max})',
-  'lobby.needMore': 'Hacen falta al menos 2 jugadores para empezar. El máximo es 8.',
+  'lobby.needMore': 'Hacen falta al menos 2 jugadores para empezar. El máximo es 4.',
   'lobby.start': 'Empezar la partida',
   'lobby.hostOnly': 'Solo el organizador puede empezar la partida.',
   'lobby.whatsapp': 'Invitar por WhatsApp',

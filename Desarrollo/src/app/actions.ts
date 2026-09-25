@@ -12,7 +12,7 @@ import {
   type GameAction,
 } from '@/engine'
 import { isLocale, type Locale } from '@/i18n'
-import { createGameCode, createToken, clearPlayerToken, getPlayerToken, setHostToken, setLocale, setPlayerToken } from '@/lib/session'
+import { createGameCode, createToken, clearHostToken, clearPlayerToken, getPlayerToken, setHostToken, setLocale, setPlayerToken } from '@/lib/session'
 import { getStore } from '@/store'
 
 export type FormState = { error: string | null }
@@ -55,7 +55,14 @@ export async function createGameAction(_prev: FormState, form: FormData): Promis
   const joined = addPlayer(state, { name, token, now: now() })
   if ('error' in joined) return fail(joined.error)
 
-  await store.create(state)
+  try {
+    await store.create(state)
+  } catch (error) {
+    console.error('createGame failed', error)
+    return fail('database_unavailable')
+  }
+  // Drop finished partidas that nobody left behind, so Supabase stays lean.
+  void store.purgeFinished().catch(() => undefined)
   await setPlayerToken(code, token)
   await setHostToken(code, hostToken)
   redirect(pathFor(code))
@@ -116,6 +123,21 @@ export async function playAction(code: string, action: ClientAction): Promise<Fo
 }
 
 export async function leaveGameAction(code: string): Promise<void> {
+  const store = getStore()
+  const key = code.toUpperCase()
+  try {
+    const token = await getPlayerToken(code)
+    const state = await store.read(key)
+    const player = state?.players.find((entry) => entry.token === token)
+    // Host leaving (or anyone leaving a finished game) wipes the partida completely.
+    if (player?.isHost || state?.status === 'finished') {
+      await store.delete(key)
+    }
+    await store.purgeFinished()
+  } catch {
+    // Leaving must still work if the DB is briefly unreachable.
+  }
   await clearPlayerToken(code)
+  await clearHostToken(code)
   redirect('/')
 }

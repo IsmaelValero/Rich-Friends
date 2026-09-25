@@ -10,6 +10,9 @@ export const en = {
   'app.name': 'Rich Friends',
   'app.tagline': 'One fortune. Not one honest person.',
   'app.leave': 'Leave',
+  'app.leaveConfirm': 'Are you sure you want to leave and end the game?',
+  'app.leaveConfirmYes': 'Yes, end the game',
+  'app.leaveConfirmNo': 'Cancel',
 
   'nav.today': 'Today',
   'nav.market': 'Market',
@@ -54,7 +57,7 @@ export const en = {
   'lobby.codeLabel': 'Code',
   'lobby.duration': 'This game lasts {days} days. A few minutes each day.',
   'lobby.players': 'Players ({count}/{max})',
-  'lobby.needMore': 'You need at least 2 players to start. The maximum is 8.',
+  'lobby.needMore': 'You need at least 2 players to start. The maximum is 4.',
   'lobby.start': 'Start the game',
   'lobby.hostOnly': 'Only the host can start the game.',
   'lobby.whatsapp': 'Invite on WhatsApp',

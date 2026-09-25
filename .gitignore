@@ -33,7 +33,5 @@ Thumbs.db
 coverage/
 .turbo/
 
-# Misc
-*.tsbuildinfo
-next-env.d.ts
-vitest-out.txt
+# Local game data (file store)
+.data/

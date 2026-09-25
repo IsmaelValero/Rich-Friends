@@ -4,7 +4,7 @@ import type { GameState, Machine, MachineKind } from './types'
 export const DISPLAY_MS = 1_000
 
 export const MIN_PLAYERS = 2
-export const MAX_PLAYERS = 8
+export const MAX_PLAYERS = 4
 
 export const WORKER_VALUE = 1_000
 export const MAX_UPGRADES = 5

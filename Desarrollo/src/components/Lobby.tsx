@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from 'react'
 import { joinGameAction, startGameAction, type FormState } from '@/app/actions'
 import { Poll } from '@/components/Poll'
+import { LeaveControl } from '@/components/LeaveControl'
 import { createTranslator, type Locale } from '@/i18n'
 import type { LobbyView } from '@/lib/view'
 
@@ -53,12 +54,20 @@ export function Lobby({ view, locale }: { view: LobbyView; locale: Locale }) {
       <h1 className="font-display mt-6 text-center text-3xl">{t('lobby.title')}</h1>
       <p className="mt-2 text-center text-sm text-muted">{t('lobby.share')}</p>
 
+      {view.youAreIn ? (
+        <div className="mt-4 flex justify-center">
+          <LeaveControl code={view.code} isHost={view.isHost} t={t} />
+        </div>
+      ) : null}
+
       <div className="sheet mt-6 px-5 py-6 text-center">
         <p className="text-[0.65rem] font-extrabold tracking-[0.2em] text-muted uppercase">{t('lobby.codeLabel')}</p>
-        <p className="font-display mt-2 text-5xl tracking-[0.18em] text-wood">{view.code}</p>
+        <p className="font-display mt-2 text-5xl tracking-[0.18em] text-gold">{view.code}</p>
         <a
-          className="btn-hire mt-5 inline-flex px-5 text-sm"
+          className="mt-5 inline-block text-sm font-bold text-forest underline-offset-4 hover:underline"
           href={`https://wa.me/?text=${encodeURIComponent(invite)}`}
+          target="_blank"
+          rel="noreferrer"
         >
           {t('lobby.whatsapp')}
         </a>

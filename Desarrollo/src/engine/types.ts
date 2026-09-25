@@ -166,6 +166,8 @@ export interface GameState {
   config: GameConfig
   status: 'lobby' | 'running' | 'finished'
   startedAt: string | null
+  /** Set when the partida ends; used to purge finished rows after a short TTL. */
+  finishedAt: string | null
   hostToken: string
   players: Player[]
   offers: Offer[]

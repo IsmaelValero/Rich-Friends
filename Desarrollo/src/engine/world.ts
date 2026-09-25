@@ -67,6 +67,10 @@ export function migrateCatalogue(state: GameState): boolean {
     state.startedAt = null
     changed = true
   }
+  if (state.finishedAt === undefined) {
+    state.finishedAt = state.status === 'finished' ? state.startedAt : null
+    changed = true
+  }
 
   const now = new Date().toISOString()
   for (const player of state.players ?? []) {
@@ -203,6 +207,7 @@ export function createGame(opts: {
     config,
     status: 'lobby',
     startedAt: null,
+    finishedAt: null,
     hostToken: opts.hostToken,
     players: [],
     offers: [],
@@ -279,6 +284,7 @@ export function finishGame(state: GameState, now: string): { ok: true } | { ok: 
   if (state.status !== 'running') return { ok: false, error: 'not_running' }
   settleAll(state, now)
   state.status = 'finished'
+  state.finishedAt = now
   logEvent(state, 'game_finished', 'public', {}, now)
   return { ok: true }
 }

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Rich Friends">
+  <rect width="32" height="32" rx="8" fill="#f3e2c4"/>
+  <path
+    d="M5 22 L8 10 L14 16 L16 6 L18 16 L24 10 L27 22 Z"
+    fill="#f0b429"
+    stroke="#8a5a18"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+  />
+  <rect x="6" y="22" width="20" height="3.5" rx="1" fill="#f0b429" stroke="#8a5a18" stroke-width="1.3"/>
+  <circle cx="8" cy="10" r="1.4" fill="#fff1b8" stroke="#8a5a18" stroke-width="0.8"/>
+  <circle cx="16" cy="6" r="1.5" fill="#fff1b8" stroke="#8a5a18" stroke-width="0.8"/>
+  <circle cx="24" cy="10" r="1.4" fill="#fff1b8" stroke="#8a5a18" stroke-width="0.8"/>
+</svg>

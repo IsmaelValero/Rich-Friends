@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { playAction, leaveGameAction, type ClientAction } from '@/app/actions'
 import { Poll } from '@/components/Poll'
+import { LeaveControl } from '@/components/LeaveControl'
 import { formatMoney, createTranslator, type Locale, type Translator } from '@/i18n'
 import type { GameView } from '@/lib/view'
 import { CompanyDesk } from '@/components/Company'
@@ -86,9 +87,7 @@ export function GameApp({ view, locale }: { view: GameView; locale: Locale }) {
             <div className="ribbon">{t('app.name')}</div>
           </div>
           <div className="flex justify-end self-center">
-            <button type="button" className="btn-leave" onClick={() => void leaveGameAction(view.code)}>
-              {t('app.leave')}
-            </button>
+            <LeaveControl code={view.code} isHost={view.isHost} t={t} />
           </div>
         </div>
 

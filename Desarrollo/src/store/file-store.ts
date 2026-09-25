@@ -5,7 +5,7 @@
  * connection string. `npm run dev` and you are in.
  */
 
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { GameState } from '@/engine/types'
 import { migrateCatalogue } from '@/engine/world'
@@ -124,6 +124,34 @@ export function createFileStore(): GameStore {
         })
       }
       return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    },
+
+    async delete(code) {
+      await ready
+      const key = code.toUpperCase()
+      await rm(gamePath(key), { force: true })
+      await rm(join(SNAPSHOTS, key), { recursive: true, force: true })
+      locks.delete(key)
+    },
+
+    async purgeFinished(maxAgeMs = 2 * 60 * 60 * 1000) {
+      await ready
+      const cutoff = Date.now() - maxAgeMs
+      const files = await readdir(GAMES).catch(() => [] as string[])
+      let deleted = 0
+      for (const name of files) {
+        if (!name.endsWith('.json')) continue
+        const code = name.replace(/\.json$/, '')
+        const state = await readRaw(code)
+        if (!state || state.status !== 'finished') continue
+        const stamp = Date.parse(state.finishedAt ?? state.createdAt)
+        if (!Number.isFinite(stamp) || stamp > cutoff) continue
+        await rm(gamePath(code), { force: true })
+        await rm(join(SNAPSHOTS, code.toUpperCase()), { recursive: true, force: true })
+        locks.delete(code.toUpperCase())
+        deleted += 1
+      }
+      return deleted
     },
   }
 }

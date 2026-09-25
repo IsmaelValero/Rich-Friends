@@ -72,6 +72,11 @@ export async function setHostToken(code: string, token: string): Promise<void> {
   })
 }
 
+export async function clearHostToken(code: string): Promise<void> {
+  const store = await cookies()
+  store.delete(hostCookieName(code))
+}
+
 export async function getLocale(): Promise<Locale> {
   const store = await cookies()
   const value = store.get(LOCALE_COOKIE)?.value
