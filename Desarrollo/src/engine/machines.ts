@@ -3,8 +3,8 @@ import type { GameState, Machine, MachineKind } from './types'
 /** The money counter moves once a second. */
 export const DISPLAY_MS = 1_000
 
-export const MIN_PLAYERS = 2
-export const MAX_PLAYERS = 4
+export const MIN_PLAYERS = 4
+export const MAX_PLAYERS = 10
 
 export const WORKER_VALUE = 1_000
 export const MAX_UPGRADES = 5
