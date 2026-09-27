@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { machineLook, rateParts, rumorActive } from '@/engine/effects'
 import { canBuyMachine, MACHINE_LIST, MACHINE_SPEC, MAX_UPGRADES, MAX_WORKERS, upgradePrice, workerPrice } from '@/engine/machines'
 import type { ClientAction } from '@/app/actions'
+import { CrownIcon, CoinIcon, LockIcon, UpgradeIcon, WorkerIcon } from '@/components/Icons'
 import { formatMoney, type Locale, type Translator } from '@/i18n'
 import type { Machine, MachineKind } from '@/engine/types'
 import type { GameView } from '@/lib/view'
@@ -62,8 +63,8 @@ export function CompanyDesk({
     }
   }
 
-  const playMachines = MACHINE_LIST.filter((spec) => !spec.endsGame)
-  const ownedCount = view.you.machines.filter((machine) => machine.owned && !MACHINE_SPEC[machine.kind]?.endsGame).length
+  const playMachines = MACHINE_LIST
+  const ownedCount = view.you.machines.filter((machine) => machine.owned).length
   const sorted = [...view.you.machines].sort(
     (a, b) => MACHINE_LIST.findIndex((spec) => spec.kind === a.kind) - MACHINE_LIST.findIndex((spec) => spec.kind === b.kind),
   )
@@ -80,155 +81,169 @@ export function CompanyDesk({
       {view.you.cola ? <p className="sheet mb-3 px-4 py-3 text-sm font-semibold">{t('machine.cola')}</p> : null}
       {view.you.pending ? <p className="sheet mb-3 px-4 py-3 text-sm font-semibold">{t('machine.pending')}</p> : null}
 
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <h2 className="font-display text-3xl leading-none tracking-wide uppercase">{t('company.machines')}</h2>
-        <p className="font-display text-lg tabular-nums text-muted">{t('machine.progress', { owned: ownedCount, total: playMachines.length })}</p>
-      </div>
+      <section className="firm-section">
+        <div className="firm-section-head">
+          <h2 className="firm-section-title">
+            <span className="firm-section-crown" aria-hidden>
+              <CrownIcon className="h-4 w-5" />
+            </span>
+            {t('company.machines')}
+          </h2>
+          <p className="firm-section-progress">{t('machine.progress', { owned: ownedCount, total: playMachines.length })}</p>
+        </div>
 
-      <ul className="space-y-3 pb-2">
-        {sorted.map((source) => {
-          const machine = shown(source)
-          const spec = MACHINE_SPEC[machine.kind]
-          const unlocked = canBuyMachine(view.you.machines, machine.kind)
-          const previousIndex = MACHINE_LIST.findIndex((entry) => entry.kind === machine.kind)
-          const previous = previousIndex > 0 ? MACHINE_LIST[previousIndex - 1] : null
-          const money = (amount: number) => formatMoney(locale, amount)
-          const look = machine.owned ? machineLook(machine.id, view.you.effects, nowMs) : null
-          const hidden = rumorActive(view.you.effects, nowMs)
-          const parts = machine.owned ? rateParts(machine, view.you.effects, nowMs, view.you.machines) : null
-          const rate = machine.owned ? Math.round((parts?.owner ?? 0) + (parts?.thief ?? 0)) : spec.perSecond
-          const stopped = look?.tone === 'stopped'
-          const stolen = look?.tone === 'stolen'
-          const share = machine.owned && firmRate > 0 ? Math.round((rate / firmRate) * 100) : 0
-          const rateLabel = spec.endsGame
-            ? t('machine.endGoal')
-            : hidden
+        <ul className="firm-machine-list">
+          {sorted.map((source) => {
+            const machine = shown(source)
+            const spec = MACHINE_SPEC[machine.kind]
+            const unlocked = canBuyMachine(view.you.machines, machine.kind)
+            const previousIndex = MACHINE_LIST.findIndex((entry) => entry.kind === machine.kind)
+            const previous = previousIndex > 0 ? MACHINE_LIST[previousIndex - 1] : null
+            const money = (amount: number) => formatMoney(locale, amount)
+            const look = machine.owned ? machineLook(machine.id, view.you.effects, nowMs) : null
+            const hidden = rumorActive(view.you.effects, nowMs)
+            const parts = machine.owned ? rateParts(machine, view.you.effects, nowMs, view.you.machines) : null
+            const rate = machine.owned ? Math.round((parts?.owner ?? 0) + (parts?.thief ?? 0)) : spec.perSecond
+            const stopped = look?.tone === 'stopped'
+            const stolen = look?.tone === 'stolen'
+            const share = machine.owned && firmRate > 0 ? Math.round((rate / firmRate) * 100) : 0
+            const rateLabel = hidden
               ? t('machine.hidden')
               : t('machine.rateUp', { rate: money(rate).replace(/\s?€$/, '') })
-          const workerLabel = t(
-            (machine.owned ? machine.workers : 0) === 1 ? 'machine.worker' : 'machine.workers',
-          ).toLowerCase()
+            const workerLabel = t(
+              (machine.owned ? machine.workers : 0) === 1 ? 'machine.worker' : 'machine.workers',
+            ).toLowerCase()
 
-          if (!machine.owned) {
+            if (!machine.owned) {
+              return (
+                <li key={machine.id} className={`machine-row ${unlocked ? '' : 'machine-row--locked'}`}>
+                  <MachineLogo kind={machine.kind} color={spec.color} compact locked={!unlocked} />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-display truncate text-lg leading-none">{t(`machine.${machine.kind}.name`)}</h4>
+                    <p className="mt-1.5">
+                      <span className={`rate-pill ${unlocked ? '' : 'is-muted'}`}>
+                        <span aria-hidden>▲</span>{' '}
+                        {t('machine.rateUp', { rate: money(spec.perSecond).replace(/\s?€$/, '') })}
+                      </span>
+                    </p>
+                  </div>
+                  {unlocked ? (
+                    <button
+                      type="button"
+                      onClick={() => void onAct({ kind: 'buy_machine', machineId: machine.id })}
+                      className="btn-buy machine-action-btn shrink-0"
+                      aria-label={t('machine.buyFor', { price: money(spec.value) })}
+                      title={t('machine.buyFor', { price: money(spec.value) })}
+                    >
+                      <CoinIcon className="machine-action-icon" />
+                      <span>{money(spec.value)}</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="machine-row-lock shrink-0"
+                      title={t('machine.needPrevious', { name: previous ? t(`machine.${previous.kind}.name`) : '' })}
+                    >
+                      <LockIcon className="h-6 w-6" />
+                    </span>
+                  )}
+                </li>
+              )
+            }
+
             return (
               <li
                 key={machine.id}
-                className={`machine-row ${unlocked ? '' : 'machine-row--locked'}`}
+                className={`machine-card machine-card--owned ${stolen ? 'is-stolen' : ''} ${stopped ? 'is-stopped' : ''}`}
+                style={{ borderColor: stolen ? '#c4322a' : stopped ? '#8a8178' : undefined }}
               >
-                <MachineLogo kind={machine.kind} color={spec.color} compact locked={!unlocked} />
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-display truncate text-lg leading-none sm:text-xl">
-                    {t(`machine.${machine.kind}.name`)}
-                  </h4>
-                  <p className="mt-1">
-                    <span className={`rate-pill ${unlocked ? '' : 'opacity-70'}`}>
-                      <span aria-hidden>▲</span>{' '}
-                      {spec.endsGame
-                        ? t('machine.endGoal')
-                        : t('machine.rateUp', { rate: money(spec.perSecond).replace(/\s?€$/, '') })}
-                    </span>
-                  </p>
-                </div>
-                {unlocked ? (
-                  <button
-                    type="button"
-                    onClick={() => void onAct({ kind: 'buy_machine', machineId: machine.id })}
-                    className="btn-buy shrink-0 px-3 text-xs sm:px-4 sm:text-sm"
-                  >
-                    {t(spec.endsGame ? 'machine.endFor' : 'machine.buyFor', { price: money(spec.value) })}
-                  </button>
-                ) : (
-                  <span
-                    className="machine-row-lock shrink-0"
-                    title={t('machine.needPrevious', { name: previous ? t(`machine.${previous.kind}.name`) : '' })}
-                  >
-                    <LockMark />
-                  </span>
-                )}
-              </li>
-            )
-          }
-
-          return (
-            <li
-              key={machine.id}
-              className="machine-card"
-              style={{
-                borderColor: stolen ? '#c4322a' : stopped ? '#8a8178' : undefined,
-                filter: stopped ? 'grayscale(0.85)' : undefined,
-              }}
-            >
-              <div className="machine-card-body">
-                <MachineLogo kind={machine.kind} color={stolen ? '#c4322a' : spec.color} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-display text-xl leading-none sm:text-2xl">{t(`machine.${machine.kind}.name`)}</h4>
-                    {!spec.endsGame ? <span className="level-pill shrink-0">{t('machine.level', { level: machine.upgrades })}</span> : null}
-                  </div>
-                  {!spec.endsGame ? (
+                <div className="machine-card-body">
+                  <MachineLogo kind={machine.kind} color={stolen ? '#c4322a' : spec.color} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-display text-xl leading-none">{t(`machine.${machine.kind}.name`)}</h4>
+                      <span className="level-pill shrink-0">{t('machine.level', { level: machine.upgrades })}</span>
+                    </div>
                     <p className="mt-1.5 text-sm font-semibold text-muted">
                       {t('machine.stats', { percent: share, workers: machine.workers, workerLabel })}
                     </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className={`rate-pill ${stolen ? 'is-bad' : ''}`}>
-                      <span aria-hidden>▲</span> {rateLabel}
-                    </span>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className={`rate-pill ${stolen ? 'is-bad' : ''}`}>
+                        <span aria-hidden>▲</span> {rateLabel}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-snug text-muted italic">{t(`machine.${machine.kind}.blurb`)}</p>
+                    {stolen ? (
+                      <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-[#c4322a]">
+                        <AlertMark />
+                        <span>{t('machine.workingFor', { name: look.by })}</span>
+                      </p>
+                    ) : null}
+                    {look?.tone === 'slow' ? <p className="mt-2 text-sm font-semibold">{t('machine.half')}</p> : null}
+                    {look?.tone === 'interest' ? (
+                      <p className="mt-2 text-sm font-semibold">{t('machine.interestCut', { name: look.by })}</p>
+                    ) : null}
+                    {stopped ? <p className="mt-2 text-sm font-semibold">{t('machine.stoppedBy', { name: look.by })}</p> : null}
                   </div>
-                  <p className="mt-2 text-sm leading-snug text-muted italic">{t(`machine.${machine.kind}.blurb`)}</p>
-                  {stolen ? (
-                    <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-[#c4322a]">
-                      <AlertMark />
-                      <span>{t('machine.workingFor', { name: look.by })}</span>
-                    </p>
-                  ) : null}
-                  {look?.tone === 'slow' ? <p className="mt-2 text-sm font-semibold">{t('machine.half')}</p> : null}
-                  {look?.tone === 'interest' ? (
-                    <p className="mt-2 text-sm font-semibold">{t('machine.interestCut', { name: look.by })}</p>
-                  ) : null}
-                  {stopped ? <p className="mt-2 text-sm font-semibold">{t('machine.stoppedBy', { name: look.by })}</p> : null}
                 </div>
-              </div>
 
-              {!spec.endsGame ? (
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="mt-3.5 grid grid-cols-2 gap-2">
                   <MachineButton
                     tone="upgrade"
                     busy={busy === `upgrade_machine:${machine.id}`}
                     disabled={machine.upgrades >= MAX_UPGRADES || stopped}
+                    label={
+                      machine.upgrades >= MAX_UPGRADES
+                        ? t('machine.maxed')
+                        : t('machine.upgradeFor', { price: money(upgradePrice(machine)) })
+                    }
                     onClick={() => void press(source, 'upgrade_machine')}
                   >
-                    {machine.upgrades >= MAX_UPGRADES
-                      ? t('machine.maxed')
-                      : t('machine.upgradeFor', { price: money(upgradePrice(machine)) })}
+                    {machine.upgrades >= MAX_UPGRADES ? (
+                      t('machine.maxed')
+                    ) : (
+                      <>
+                        <UpgradeIcon className="machine-action-icon" tone="inherit" />
+                        <span>{money(upgradePrice(machine))}</span>
+                      </>
+                    )}
                   </MachineButton>
                   <MachineButton
                     tone="hire"
                     busy={busy === `buy_worker:${machine.id}`}
                     disabled={machine.workers >= MAX_WORKERS || stopped}
+                    label={
+                      machine.workers >= MAX_WORKERS
+                        ? t('machine.maxed')
+                        : t('machine.workerFor', { price: money(workerPrice(machine)) })
+                    }
                     onClick={() => void press(source, 'buy_worker')}
                   >
-                    {machine.workers >= MAX_WORKERS
-                      ? t('machine.maxed')
-                      : t('machine.workerFor', { price: money(workerPrice(machine)) })}
+                    {machine.workers >= MAX_WORKERS ? (
+                      t('machine.maxed')
+                    ) : (
+                      <>
+                        <WorkerIcon className="machine-action-icon" tone="inherit" />
+                        <span>{money(workerPrice(machine))}</span>
+                      </>
+                    )}
                   </MachineButton>
                 </div>
-              ) : null}
 
-              {stopped && look.effectId && look.amount ? (
-                <button
-                  type="button"
-                  onClick={() => void onAct({ kind: 'pay_restart', effectId: look.effectId! })}
-                  className="btn-hire relative z-10 mt-3 w-full px-4 text-sm"
-                  style={{ filter: 'grayscale(0)' }}
-                >
-                  {t('machine.payRestart', { amount: money(look.amount) })}
-                </button>
-              ) : null}
-            </li>
-          )
-        })}
-      </ul>
+                {stopped && look.effectId && look.amount ? (
+                  <button
+                    type="button"
+                    onClick={() => void onAct({ kind: 'pay_restart', effectId: look.effectId! })}
+                    className="btn-hire relative z-10 mt-3 w-full px-4 text-sm"
+                    style={{ filter: 'grayscale(0)' }}
+                  >
+                    {t('machine.payRestart', { amount: money(look.amount) })}
+                  </button>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
     </div>
   )
 }
@@ -238,16 +253,6 @@ function AlertMark() {
     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#c4322a] text-xs font-black text-white" aria-hidden>
       !
     </span>
-  )
-}
-
-function LockMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden>
-      <rect x="5" y="10" width="14" height="11" rx="2" fill="#3a3a3a" stroke="#1c1c1c" strokeWidth="1.5" />
-      <path d="M8 10V7.5a4 4 0 0 1 8 0V10" stroke="#1c1c1c" strokeWidth="1.8" strokeLinecap="round" />
-      <circle cx="12" cy="15.5" r="1.4" fill="#c9c9c9" />
-    </svg>
   )
 }
 
@@ -262,7 +267,7 @@ function MachineLogo({
   locked?: boolean
   compact?: boolean
 }) {
-  const size = compact ? 56 : 76
+  const size = compact ? 52 : 72
   const rim = locked ? undefined : `color-mix(in srgb, ${color} 35%, #3a2410 65%)`
   return (
     <span
@@ -292,12 +297,14 @@ function MachineButton({
   tone,
   busy,
   disabled,
+  label,
   onClick,
   children,
 }: {
   tone: 'upgrade' | 'hire'
   busy: boolean
   disabled?: boolean
+  label: string
   onClick: () => void
   children: ReactNode
 }) {
@@ -306,7 +313,9 @@ function MachineButton({
       type="button"
       onClick={onClick}
       disabled={busy || disabled}
-      className={`${tone === 'upgrade' ? 'btn-upgrade' : 'btn-hire'} px-2 text-sm leading-tight tracking-wide disabled:opacity-60`}
+      aria-label={label}
+      title={label}
+      className={`${tone === 'upgrade' ? 'btn-upgrade' : 'btn-hire'} machine-action-btn disabled:opacity-60`}
     >
       {children}
     </button>

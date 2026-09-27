@@ -1,5 +1,6 @@
 import { cashNow, rateParts, siphonsFor, type LiveSiphon } from '@/engine/effects'
 import { assetValue, cardPrice, firmValue, MAX_PLAYERS, MIN_PLAYERS } from '@/engine/machines'
+import { DEFAULT_DURATION_MS, gameEndsAtMs } from '@/engine/world'
 import type { AssetBundle, CardEffect, GameNotice, GameState, Loan, Machine, Offer, PendingBuy, Player, ShopCard } from '@/engine/types'
 
 export interface OfferView {
@@ -51,6 +52,9 @@ export interface GameView {
   code: string
   status: GameState['status']
   isHost: boolean
+  /** Epoch ms when the match clock hits zero (running only). */
+  endsAtMs: number | null
+  durationMs: number
   you: {
     id: string
     name: string
@@ -160,16 +164,22 @@ export function buildGameView(state: GameState, viewer: Player): GameView {
 
   const finalStandings =
     state.status === 'finished'
-      ? state.players
-          .map((player) => ({ playerId: player.id, name: player.name, total: firmValue(player.machines) }))
-          .sort((a, b) => b.total - a.total)
-          .map((row, index) => ({ ...row, position: index + 1 }))
+      ? (state.standings.length
+          ? state.standings
+          : state.players
+              .map((player) => ({ playerId: player.id, name: player.name, total: firmValue(player.machines) }))
+              .sort((a, b) => b.total - a.total)
+              .map((row, index) => ({ ...row, position: index + 1 })))
       : null
+
+  const endsAtMs = state.status === 'running' ? gameEndsAtMs(state) : null
 
   return {
     code: state.code,
     status: state.status,
     isHost: viewer.isHost,
+    endsAtMs,
+    durationMs: state.config.durationMs ?? DEFAULT_DURATION_MS,
     you: {
       ...playerSummary(state, viewer, viewer.id, nowMs),
       hand: viewer.hand ?? [],

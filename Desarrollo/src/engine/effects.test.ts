@@ -10,6 +10,8 @@ function table() {
   const state = createGame({ code: 'FX', hostToken: 'host', now })
   const ana = addPlayer(state, { name: 'Ana', token: 'ana', now })
   const bo = addPlayer(state, { name: 'Bo', token: 'bo', now })
+  addPlayer(state, { name: 'Cata', token: 'cata', now })
+  addPlayer(state, { name: 'Dani', token: 'dani', now })
   if ('error' in ana || 'error' in bo) throw new Error('seat')
   const started = startGame(state, now)
   if (!started.ok) throw new Error(started.error)

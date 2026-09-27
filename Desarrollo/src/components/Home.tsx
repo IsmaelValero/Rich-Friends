@@ -2,27 +2,10 @@
 
 import { useActionState } from 'react'
 import { createGameAction, joinGameAction, type FormState } from '@/app/actions'
+import { CrownIcon } from '@/components/Icons'
 import { createTranslator, type Locale } from '@/i18n'
 
 const initial: FormState = { error: null }
-
-function CrownMark({ className = 'brand-crown h-6 w-9' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 22" className={className} aria-hidden>
-      <path
-        d="M3 17 L6 6 L12 12 L16 3 L20 12 L26 6 L29 17 Z"
-        fill="#f0b429"
-        stroke="#8a5a18"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <rect x="4" y="17" width="24" height="3.5" rx="1" fill="#f0b429" stroke="#8a5a18" strokeWidth="1.2" />
-      <circle cx="6" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-      <circle cx="16" cy="3" r="1.45" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-      <circle cx="26" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-    </svg>
-  )
-}
 
 export function Home({ locale }: { locale: Locale }) {
   const t = createTranslator(locale)
@@ -33,7 +16,7 @@ export function Home({ locale }: { locale: Locale }) {
     <main id="main" className="flex min-h-dvh flex-col justify-center px-5 py-14 sm:px-6">
       <div className="flex flex-col items-center">
         <div className="brand-mark">
-          <CrownMark />
+          <CrownIcon className="brand-crown h-6 w-9" />
           <div className="ribbon">{t('app.name')}</div>
         </div>
         <h1 className="mt-5 max-w-sm text-center font-display text-2xl leading-snug text-balance text-ink">

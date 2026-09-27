@@ -1,15 +1,24 @@
 'use client'
 
 import { useActionState, useEffect, useState } from 'react'
+import Image from 'next/image'
 import { joinGameAction, startGameAction, type FormState } from '@/app/actions'
 import { Poll } from '@/components/Poll'
 import { LeaveControl } from '@/components/LeaveControl'
-import { createTranslator, type Locale } from '@/i18n'
+import { CrownIcon } from '@/components/Icons'
+import { DEFENSE_KINDS, SABOTAGE_KINDS } from '@/engine/cards'
+import type { CardKind, CardPile } from '@/engine/types'
+import { createTranslator, type Locale, type Translator } from '@/i18n'
 import type { LobbyView } from '@/lib/view'
 
 const initial: FormState = { error: null }
 
 const HOW_TO_STEPS = ['howTo.step1', 'howTo.step2', 'howTo.step3', 'howTo.step4', 'howTo.step5'] as const
+
+const TONE = {
+  sabotage: { edge: '#c4322a', ink: '#9d241e' },
+  defense: { edge: '#2a5fd0', ink: '#1d46a8' },
+} as const
 
 export function Lobby({ view, locale }: { view: LobbyView; locale: Locale }) {
   const t = createTranslator(locale)
@@ -32,33 +41,21 @@ export function Lobby({ view, locale }: { view: LobbyView; locale: Locale }) {
     <main id="main" className="min-h-dvh px-5 py-10 sm:px-6">
       <Poll />
 
-      <div className="flex justify-center">
+      <div className="game-brand-row">
         <div className="brand-mark">
-          <svg viewBox="0 0 32 22" className="brand-crown h-5 w-8" aria-hidden>
-            <path
-              d="M3 17 L6 6 L12 12 L16 3 L20 12 L26 6 L29 17 Z"
-              fill="#f0b429"
-              stroke="#8a5a18"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-            <rect x="4" y="17" width="24" height="3.5" rx="1" fill="#f0b429" stroke="#8a5a18" strokeWidth="1.2" />
-            <circle cx="6" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-            <circle cx="16" cy="3" r="1.45" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-            <circle cx="26" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-          </svg>
+          <CrownIcon className="brand-crown h-5 w-8" />
           <div className="ribbon">{t('app.name')}</div>
         </div>
+        {view.youAreIn ? (
+          <div className="game-leave-slot">
+            <LeaveControl code={view.code} isHost={view.isHost} t={t} iconOnly />
+          </div>
+        ) : null}
       </div>
 
       <h1 className="font-display mt-6 text-center text-3xl">{t('lobby.title')}</h1>
       <p className="mt-2 text-center text-sm text-muted">{t('lobby.share')}</p>
-
-      {view.youAreIn ? (
-        <div className="mt-4 flex justify-center">
-          <LeaveControl code={view.code} isHost={view.isHost} t={t} />
-        </div>
-      ) : null}
+      <p className="mt-1 text-center text-sm font-semibold text-wood">{t('lobby.duration')}</p>
 
       <div className="sheet mt-6 px-5 py-6 text-center">
         <p className="text-[0.65rem] font-extrabold tracking-[0.2em] text-muted uppercase">{t('lobby.codeLabel')}</p>
@@ -107,6 +104,33 @@ export function Lobby({ view, locale }: { view: LobbyView; locale: Locale }) {
             </li>
           ))}
         </ol>
+
+        <section className="how-to-block mt-5">
+          <h3 className="font-display text-lg uppercase tracking-wide text-ink">{t('howTo.worthTitle')}</h3>
+          <p className="mt-2 text-sm leading-relaxed text-ink">{t('howTo.worthBody')}</p>
+        </section>
+
+        <section className="how-to-block mt-5">
+          <h3 className="font-display text-lg uppercase tracking-wide text-ink">{t('howTo.cardsTitle')}</h3>
+
+          <h4 className="font-display mt-4 text-base uppercase tracking-wide" style={{ color: TONE.sabotage.ink }}>
+            {t('howTo.cardsSabotage')}
+          </h4>
+          <ul className="how-to-card-grid mt-3">
+            {SABOTAGE_KINDS.map((kind) => (
+              <HowToCard key={kind} pile="sabotage" kind={kind} t={t} />
+            ))}
+          </ul>
+
+          <h4 className="font-display mt-5 text-base uppercase tracking-wide" style={{ color: TONE.defense.ink }}>
+            {t('howTo.cardsDefense')}
+          </h4>
+          <ul className="how-to-card-grid mt-3">
+            {DEFENSE_KINDS.map((kind) => (
+              <HowToCard key={kind} pile="defense" kind={kind} t={t} />
+            ))}
+          </ul>
+        </section>
       </details>
 
       {!view.youAreIn ? (
@@ -143,5 +167,27 @@ export function Lobby({ view, locale }: { view: LobbyView; locale: Locale }) {
 
       {error ? <p className="mt-4 text-center text-sm text-copper">{t(`error.${error}`)}</p> : null}
     </main>
+  )
+}
+
+function HowToCard({ pile, kind, t }: { pile: CardPile; kind: CardKind; t: Translator }) {
+  const tone = TONE[pile]
+  const art = pile === 'sabotage' ? '/art/cards/card-face-sabotage.png' : '/art/cards/card-face-defense.png'
+  return (
+    <li className="flex flex-col items-center">
+      <article
+        className="how-to-card relative overflow-hidden rounded-2xl border-[3px] shadow-[0_5px_0_rgba(40,24,10,0.28)]"
+        style={{ borderColor: tone.edge }}
+      >
+        <Image src={art} alt="" fill className="object-cover" sizes="120px" />
+        <div className="card-face-copy how-to-card-copy">
+          <p className="card-face-pile" style={{ color: tone.ink }}>
+            {t(pile === 'sabotage' ? 'shop.pileSabotage' : 'shop.pileDefense')}
+          </p>
+          <h5 className="card-face-title how-to-card-title">{t(`shop.${kind}.name`)}</h5>
+          <p className="card-face-blurb how-to-card-blurb">{t(`shop.${kind}.blurb`)}</p>
+        </div>
+      </article>
+    </li>
   )
 }

@@ -14,7 +14,6 @@ export type MachineKind =
   | 'maquinorra'
   | 'brutal'
   | 'tresmil'
-  | 'final'
 
 export interface Machine {
   id: string
@@ -146,6 +145,8 @@ export interface Loan {
 export interface GameConfig {
   startingCash: number
   seed: number
+  /** Match length from startGame. Default 15 minutes. */
+  durationMs: number
 }
 
 export type LogKind = 'game_created' | 'player_joined' | 'game_started' | 'loan_agreed' | 'loan_repaid' | 'offer_accepted' | 'game_finished'

@@ -55,13 +55,26 @@ export function createTranslator(locale: Locale): Translator {
 
 const CURRENCY_LOCALE: Record<Locale, string> = { en: 'en-GB', es: 'es-ES' }
 
-export function formatMoney(locale: Locale, amount: number, options?: { compact?: boolean }): string {
-  return new Intl.NumberFormat(CURRENCY_LOCALE[locale], {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-    notation: options?.compact ? 'compact' : 'standard',
-  }).format(Math.round(amount))
+/** Format a short mantissa like 5.5 / 5,5 without trailing zeros. */
+function formatCompactFigure(locale: Locale, value: number): string {
+  const rounded = Math.round(value * 10) / 10
+  if (Number.isInteger(rounded)) return String(rounded)
+  return rounded.toLocaleString(CURRENCY_LOCALE[locale], {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+}
+
+/**
+ * Game money: under 1 000 as euros; from 1 000 as K; from 1 000 000 as M.
+ * Examples: 597 € · 5,5K € · 2,5M €
+ */
+export function formatMoney(locale: Locale, amount: number, _options?: { compact?: boolean }): string {
+  const sign = amount < 0 ? '-' : ''
+  const n = Math.round(Math.abs(amount))
+  if (n >= 1_000_000) return `${sign}${formatCompactFigure(locale, n / 1_000_000)}M €`
+  if (n >= 1_000) return `${sign}${formatCompactFigure(locale, n / 1_000)}K €`
+  return `${sign}${n.toLocaleString(CURRENCY_LOCALE[locale])} €`
 }
 
 /** Gain or loss, always with a sign. */

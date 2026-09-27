@@ -12,7 +12,12 @@ export type LoadedPage =
 export async function loadGamePage(code: string): Promise<LoadedPage> {
   const locale = await getLocale()
   const store = getStore()
-  const state = await store.read(code.toUpperCase())
+  const key = code.toUpperCase()
+
+  // Persist clock expiry (and other migrations) before rendering.
+  await store.mutate(key, () => undefined).catch(() => null)
+
+  const state = await store.read(key)
   if (!state) return { kind: 'missing', locale }
 
   const token = await getPlayerToken(state.code)

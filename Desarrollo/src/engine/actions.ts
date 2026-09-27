@@ -1,8 +1,8 @@
-import { kindsFor, MAX_ACTIVE_DEFENSES } from './cards'
+import { canBuyPile, kindsFor, MAX_ACTIVE_DEFENSES } from './cards'
 import { closeIncoming, holdPurchase, settleAll } from './effects'
-import { cardPrice, canBuyMachine, endsTheGame, MACHINE_SPEC, MAX_UPGRADES, MAX_WORKERS, START_WORKERS, upgradePrice, workerPrice } from './machines'
+import { cardPrice, canBuyMachine, MACHINE_SPEC, MAX_UPGRADES, MAX_WORKERS, START_WORKERS, upgradePrice, workerPrice } from './machines'
 import { createRng } from './rng'
-import { finishGame, logEvent, nextId } from './world'
+import { logEvent, maybeFinishByTime, nextId } from './world'
 import type { AssetBundle, CardPile, GameState, Loan, Offer, Player } from './types'
 
 export type GameAction =
@@ -305,6 +305,10 @@ function buyCard(state: GameState, playerId: string, pile: CardPile): ActionResu
   if (!owner) return fail('unknown_target')
   if (pile !== 'sabotage' && pile !== 'defense') return fail('unknown_action')
   if (!owner.hand) owner.hand = []
+  if (!owner.active) owner.active = []
+  if (!canBuyPile(owner, pile)) {
+    return fail(pile === 'sabotage' ? 'max_sabotage_cards' : 'max_defense_cards')
+  }
   const price = cardPrice(owner.machines)
   if (owner.cash < price) return fail('insufficient_cash')
   owner.cash -= price
@@ -390,13 +394,9 @@ function buyMachine(state: GameState, playerId: string, machineId: string, now: 
   return ok
 }
 
-function wonByFinal(state: GameState): boolean {
-  return state.players.some((owner) => owner.machines?.some((machine) => machine.owned && endsTheGame(machine.kind)))
-}
-
 export function applyAction(state: GameState, action: GameAction, now: string): ActionResult {
   settleAll(state, now)
-  if (state.status === 'running' && wonByFinal(state)) finishGame(state, now)
+  maybeFinishByTime(state, now)
   if (state.status !== 'running' && action.kind !== 'dismiss_notice' && action.kind !== 'dismiss_card_notice') {
     return fail('not_running')
   }
@@ -453,6 +453,6 @@ export function applyAction(state: GameState, action: GameAction, now: string): 
     default:
       result = fail('unknown_action')
   }
-  if (result.ok && state.status === 'running' && wonByFinal(state)) finishGame(state, now)
+  if (result.ok) maybeFinishByTime(state, now)
   return result
 }

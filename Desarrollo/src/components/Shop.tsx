@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import type { ClientAction } from '@/app/actions'
+import { canBuyPile, MAX_CARDS_PER_PILE } from '@/engine/cards'
 import type { CardPile, ShopCard } from '@/engine/types'
 import { formatMoney, type Translator } from '@/i18n'
 import type { GameView } from '@/lib/view'
@@ -23,7 +24,10 @@ export function ShopDesk({ view, t, onAct }: { view: GameView; t: Translator; on
   const [arming, setArming] = useState<string | null>(null)
   const others = view.players.filter((player) => !player.isYou)
   const yours = view.you.machines.filter((machine) => machine.owned)
-  const defensesFull = view.you.active.length >= 2
+  const you = { hand: view.you.hand, active: view.you.active }
+  const defensesFull = view.you.active.length >= MAX_CARDS_PER_PILE
+  const canBuySabotage = canBuyPile(you, 'sabotage')
+  const canBuyDefense = canBuyPile(you, 'defense')
 
   async function buy(pile: CardPile) {
     setBusy(pile)
@@ -51,136 +55,149 @@ export function ShopDesk({ view, t, onAct }: { view: GameView; t: Translator; on
   const priceLabel = t('shop.buyFor', { price: formatMoney(t.locale, view.you.cardPrice) })
 
   return (
-    <div>
-      <h2 className="font-display text-3xl leading-none uppercase tracking-wide">{t('shop.title')}</h2>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Deck
-          pile="sabotage"
-          label={t('shop.sabotages')}
-          buyLabel={priceLabel}
-          busy={busy === 'sabotage'}
-          onBuy={() => void buy('sabotage')}
-        />
-        <Deck
-          pile="defense"
-          label={t('shop.defenses')}
-          buyLabel={priceLabel}
-          busy={busy === 'defense'}
-          onBuy={() => void buy('defense')}
-        />
-      </div>
+    <div className="space-y-4">
+      <section className="shop-panel">
+        <div className="shop-panel-head">
+          <h2 className="shop-panel-title">{t('shop.title')}</h2>
+          <p className="shop-panel-hint">{t('shop.limitHint')}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Deck
+            pile="sabotage"
+            label={t('shop.sabotages')}
+            buyLabel={canBuySabotage ? priceLabel : t('shop.maxSabotage')}
+            busy={busy === 'sabotage'}
+            disabled={!canBuySabotage}
+            onBuy={() => void buy('sabotage')}
+          />
+          <Deck
+            pile="defense"
+            label={t('shop.defenses')}
+            buyLabel={canBuyDefense ? priceLabel : t('shop.maxDefense')}
+            busy={busy === 'defense'}
+            disabled={!canBuyDefense}
+            onBuy={() => void buy('defense')}
+          />
+        </div>
+      </section>
 
-      <h3 className="font-display mt-8 text-2xl uppercase tracking-wide">{t('shop.yours')}</h3>
-      {view.you.hand.length === 0 ? <p className="mt-3 text-sm text-muted">{t('shop.emptyHand')}</p> : null}
-      <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        {view.you.hand.map((card) => (
-          <Face
-            key={card.id}
-            card={card}
-            t={t}
-            footer={
-              card.pile === 'defense' ? (
-                defensesFull ? (
-                  <p className="text-center text-sm font-semibold text-muted">{t('shop.maxActive')}</p>
-                ) : card.kind === 'blindaje' && arming === card.id ? (
-                  <div>
-                    <p className="text-center text-sm font-semibold">{t('shop.whichMachine')}</p>
-                    <div className="mt-2 flex flex-wrap justify-center gap-2">
-                      {yours.map((machine) => (
-                        <button
-                          key={machine.id}
-                          type="button"
-                          disabled={busy === card.id}
-                          onClick={() => void activate(card.id, machine.id)}
-                          className="rounded-xl border-[3px] border-[#1d46a8] bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1d46a8] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
-                        >
-                          {t(`machine.${machine.kind}.name`)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busy === card.id}
-                    onClick={() => (card.kind === 'blindaje' ? setArming(card.id) : void activate(card.id))}
-                    className="btn-blue w-full px-3 text-sm disabled:opacity-60"
-                  >
-                    {t('shop.activate')}
-                  </button>
-                )
-              ) : sendingId === card.id && aim?.cardId === card.id ? (
-                <div>
-                  <p className="text-center text-sm font-semibold">{t('shop.whichMachine')}</p>
-                  <div className="mt-2 flex flex-wrap justify-center gap-2">
-                    {(view.players.find((player) => player.id === aim.toId)?.machines ?? [])
-                      .filter((machine) => machine.owned)
-                      .map((machine) => (
-                        <button
-                          key={machine.id}
-                          type="button"
-                          disabled={busy === card.id}
-                          onClick={() => void send(card.id, aim.toId, machine.id)}
-                          className="rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1c140c] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
-                        >
-                          {t(`machine.${machine.kind}.name`)}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              ) : sendingId === card.id ? (
-                <div>
-                  <p className="text-center text-sm font-semibold">{t('shop.who')}</p>
-                  <div className="mt-2 flex flex-wrap justify-center gap-2">
-                    {others.map((player) => (
+      <section className="shop-panel">
+        <div className="shop-panel-head">
+          <h3 className="shop-panel-title">{t('shop.yours')}</h3>
+        </div>
+        {view.you.hand.length === 0 && view.you.active.length === 0 ? (
+          <p className="text-sm text-muted">{t('shop.emptyHand')}</p>
+        ) : null}
+        {view.you.hand.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {view.you.hand.map((card) => (
+              <Face
+                key={card.id}
+                card={card}
+                t={t}
+                footer={
+                  card.pile === 'defense' ? (
+                    defensesFull ? (
+                      <p className="text-center text-sm font-semibold text-muted">{t('shop.maxActive')}</p>
+                    ) : card.kind === 'blindaje' && arming === card.id ? (
+                      <div>
+                        <p className="text-center text-sm font-semibold">{t('shop.whichMachine')}</p>
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                          {yours.map((machine) => (
+                            <button
+                              key={machine.id}
+                              type="button"
+                              disabled={busy === card.id}
+                              onClick={() => void activate(card.id, machine.id)}
+                              className="rounded-xl border-[3px] border-[#1d46a8] bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1d46a8] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+                            >
+                              {t(`machine.${machine.kind}.name`)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
                       <button
-                        key={player.id}
                         type="button"
                         disabled={busy === card.id}
-                        onClick={() =>
-                          card.kind === 'saboteador' ? setAim({ cardId: card.id, toId: player.id }) : void send(card.id, player.id)
-                        }
-                        className="rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1c140c] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+                        onClick={() => (card.kind === 'blindaje' ? setArming(card.id) : void activate(card.id))}
+                        className="btn-blue w-full px-3 text-sm disabled:opacity-60"
                       >
-                        {player.name}
+                        {t('shop.activate')}
                       </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSendingId(card.id)}
-                  className="btn-hire w-full px-3 text-sm"
-                >
-                  {t('shop.send')}
-                </button>
-              )
-            }
-          />
-        ))}
-      </ul>
-
-      {view.you.active.length > 0 ? (
-        <>
-          <h3 className="font-display mt-8 text-2xl">{t('shop.active')}</h3>
-          <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {view.you.active.map((card) => (
-              <Face key={card.id} card={card} t={t} footer={null} />
+                    )
+                  ) : sendingId === card.id && aim?.cardId === card.id ? (
+                    <div>
+                      <p className="text-center text-sm font-semibold">{t('shop.whichMachine')}</p>
+                      <div className="mt-2 flex flex-wrap justify-center gap-2">
+                        {(view.players.find((player) => player.id === aim.toId)?.machines ?? [])
+                          .filter((machine) => machine.owned)
+                          .map((machine) => (
+                            <button
+                              key={machine.id}
+                              type="button"
+                              disabled={busy === card.id}
+                              onClick={() => void send(card.id, aim.toId, machine.id)}
+                              className="rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1c140c] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+                            >
+                              {t(`machine.${machine.kind}.name`)}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : sendingId === card.id ? (
+                    <div>
+                      <p className="text-center text-sm font-semibold">{t('shop.who')}</p>
+                      <div className="mt-2 flex flex-wrap justify-center gap-2">
+                        {others.map((player) => (
+                          <button
+                            key={player.id}
+                            type="button"
+                            disabled={busy === card.id}
+                            onClick={() =>
+                              card.kind === 'saboteador' ? setAim({ cardId: card.id, toId: player.id }) : void send(card.id, player.id)
+                            }
+                            className="rounded-xl border-[3px] border-ink bg-card px-3 py-2 text-xs font-semibold shadow-[0_3px_0_#1c140c] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+                          >
+                            {player.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setSendingId(card.id)} className="btn-hire w-full px-3 text-sm">
+                      {t('shop.send')}
+                    </button>
+                  )
+                }
+              />
             ))}
           </ul>
-        </>
-      ) : null}
+        ) : null}
+
+        {view.you.active.length > 0 ? (
+          <div className={view.you.hand.length > 0 ? 'mt-5' : ''}>
+            <h4 className="font-display text-lg uppercase tracking-wide text-muted">{t('shop.active')}</h4>
+            <ul className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {view.you.active.map((card) => (
+                <Face key={card.id} card={card} t={t} footer={null} />
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
 
       {view.you.received.length > 0 ? (
-        <>
-          <h3 className="font-display mt-8 text-2xl">{t('shop.received')}</h3>
-          <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <section className="shop-panel">
+          <div className="shop-panel-head">
+            <h3 className="shop-panel-title">{t('shop.received')}</h3>
+          </div>
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {view.you.received.map((card) => (
               <Face key={card.id} card={card} t={t} footer={<p className="text-center text-sm">{t('shop.from', { name: card.fromName })}</p>} />
             ))}
           </ul>
-        </>
+        </section>
       ) : null}
     </div>
   )
@@ -191,12 +208,14 @@ function Deck({
   label,
   buyLabel,
   busy,
+  disabled,
   onBuy,
 }: {
   pile: CardPile
   label: string
   buyLabel: string
   busy: boolean
+  disabled?: boolean
   onBuy: () => void
 }) {
   const tone = TONE[pile]
@@ -213,7 +232,12 @@ function Deck({
       >
         <Image src={art} alt="" fill className="object-cover" sizes="144px" />
       </div>
-      <button type="button" disabled={busy} onClick={onBuy} className="btn-buy mx-auto mt-4 block w-full max-w-40 px-3 text-sm disabled:opacity-60">
+      <button
+        type="button"
+        disabled={busy || disabled}
+        onClick={onBuy}
+        className="btn-buy mx-auto mt-4 block w-full max-w-40 px-3 text-sm disabled:opacity-60"
+      >
         {buyLabel}
       </button>
     </section>

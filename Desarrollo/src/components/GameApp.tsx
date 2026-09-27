@@ -1,18 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { playAction, leaveGameAction, type ClientAction } from '@/app/actions'
 import { Poll } from '@/components/Poll'
 import { LeaveControl } from '@/components/LeaveControl'
+import { MatchClock } from '@/components/MatchClock'
+import { ClockIcon, CoinIcon, CrownIcon, FirmNavIcon, PodiumIcon, ShopNavIcon, TableNavIcon } from '@/components/Icons'
 import { formatMoney, createTranslator, type Locale, type Translator } from '@/i18n'
 import type { GameView } from '@/lib/view'
 import { CompanyDesk } from '@/components/Company'
 import { ShopDesk } from '@/components/Shop'
 import { LiveMoney } from '@/components/LiveMoney'
 import { LiveFirm } from '@/components/LiveFirm'
-import { LiveRate } from '@/components/LiveRate'
 
 type Tab = 'firm' | 'shop' | 'table'
 
@@ -29,6 +29,9 @@ export function GameApp({ view, locale }: { view: GameView; locale: Locale }) {
     return result.error
   }
 
+  const rank = Math.max(1, view.players.findIndex((player) => player.isYou) + 1)
+  const rankLeading = rank === 1
+
   if (view.status === 'finished') {
     const standings = view.finalStandings ?? []
     const winner = standings[0]
@@ -36,7 +39,7 @@ export function GameApp({ view, locale }: { view: GameView; locale: Locale }) {
       <main id="main" className="flex min-h-dvh flex-col px-5 py-10 sm:px-6">
         <div className="flex justify-center">
           <div className="brand-mark">
-            <CrownMark />
+            <CrownIcon className="brand-crown h-5 w-8" />
             <div className="ribbon">{t('app.name')}</div>
           </div>
         </div>
@@ -58,15 +61,21 @@ export function GameApp({ view, locale }: { view: GameView; locale: Locale }) {
         ) : null}
 
         <ol className="mt-5 space-y-3">
-          {standings.map((row) => (
-            <li key={row.playerId} className="sheet-soft flex items-center justify-between gap-4 px-4 py-3.5">
-              <span className="min-w-0 text-lg leading-snug">
-                <span className="font-semibold text-muted">{t('results.position', { position: row.position })}</span>{' '}
-                <span className="font-bold text-ink">{row.name}</span>
-              </span>
-              <span className="shrink-0 font-display text-xl tabular-nums text-wood">{formatMoney(locale, row.total)}</span>
-            </li>
-          ))}
+          {standings.map((row) => {
+            const tone =
+              row.position === 1 ? 'is-first' : row.position === 2 ? 'is-second' : row.position === 3 ? 'is-third' : 'is-rest'
+            return (
+              <li key={row.playerId} className="sheet-soft flex items-center justify-between gap-4 px-4 py-3.5">
+                <span className="flex min-w-0 items-center gap-3 text-lg leading-snug">
+                  <span className={`place-badge ${tone}`} aria-hidden>
+                    {row.position}
+                  </span>
+                  <span className="font-bold text-ink">{row.name}</span>
+                </span>
+                <span className="shrink-0 font-display text-xl tabular-nums text-wood">{formatMoney(locale, row.total)}</span>
+              </li>
+            )
+          })}
         </ol>
 
         <button type="button" className="btn-hire mt-10 w-full px-5 text-sm" onClick={() => void leaveGameAction(view.code)}>
@@ -77,103 +86,103 @@ export function GameApp({ view, locale }: { view: GameView; locale: Locale }) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col pb-28">
+    <div className="game-shell">
       <Poll />
-      <header className="sticky top-0 z-20 border-b border-[#d4b896]/80 bg-[#f0dcb8]/96 px-4 pb-3 pt-3 backdrop-blur-md">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
-          <span aria-hidden />
+      <header className="game-topbar shrink-0 px-3 pb-2.5 pt-2">
+        <div className="game-brand-row">
           <div className="brand-mark">
-            <CrownMark />
+            <CrownIcon className="brand-crown h-5 w-8" />
             <div className="ribbon">{t('app.name')}</div>
           </div>
-          <div className="flex justify-end self-center">
-            <LeaveControl code={view.code} isHost={view.isHost} t={t} />
+          <div className="game-leave-slot">
+            <LeaveControl code={view.code} isHost={view.isHost} t={t} iconOnly />
           </div>
         </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <section className="sheet-soft px-3 py-3">
-            <p className="text-[0.65rem] font-extrabold tracking-[0.14em] text-muted uppercase">{t('dash.netWorth')}</p>
-            <p className="font-display mt-1 text-xl tabular-nums leading-none">
-              <LiveFirm
-                machines={view.you.machines}
-                effects={view.you.effects}
-                initial={view.you.companyValue}
-                mask
-                locale={locale}
-              />
-            </p>
-          </section>
-          <section className="sheet-soft px-3 py-3">
-            <p className="text-[0.65rem] font-extrabold tracking-[0.14em] text-muted uppercase">{t('dash.cash')}</p>
-            <p className="font-display mt-1 flex items-center gap-1.5 text-xl tabular-nums leading-none">
-              <CoinMark />
-              <LiveMoney
-                settled={view.you.settledCash}
-                machines={view.you.machines}
-                effects={view.you.effects}
-                siphons={view.you.siphons}
-                mask
-                running={view.status === 'running'}
-                initial={view.you.cash}
-                locale={locale}
-              />
-            </p>
-            <p className="mt-1.5">
-              <LiveRate machines={view.you.machines} effects={view.you.effects} mask locale={locale} className="rate-pill" />
-            </p>
-          </section>
+        <div className="scoreboard" role="group" aria-label={t('dash.board')}>
+          <div className="scoreboard-cell">
+            <span className="scoreboard-icon" aria-hidden>
+              <ClockIcon className="h-8 w-8" />
+            </span>
+            <div className="scoreboard-copy">
+              <span className="scoreboard-label">{t('dash.time')}</span>
+              <MatchClock endsAtMs={view.endsAtMs} className="scoreboard-value" />
+            </div>
+          </div>
+          <div className="scoreboard-cell">
+            <span className="scoreboard-icon" aria-hidden>
+              <CoinIcon className="h-8 w-8" />
+            </span>
+            <div className="scoreboard-copy">
+              <span className="scoreboard-label">{t('dash.cash')}</span>
+              <p className="scoreboard-value scoreboard-money">
+                <LiveMoney
+                  settled={view.you.settledCash}
+                  machines={view.you.machines}
+                  effects={view.you.effects}
+                  siphons={view.you.siphons}
+                  mask
+                  running={view.status === 'running'}
+                  initial={view.you.cash}
+                  locale={locale}
+                />
+              </p>
+            </div>
+          </div>
+          <div className={`scoreboard-cell scoreboard-rank ${rankLeading ? 'is-lead' : 'is-chase'}`}>
+            <span className="scoreboard-icon scoreboard-icon--podium" aria-hidden>
+              <PodiumIcon className="h-9 w-9" />
+            </span>
+            <div className="scoreboard-copy">
+              <span className="scoreboard-label">{t('dash.rank')}</span>
+              <p className="scoreboard-value" aria-label={t('company.rank', { position: rank })}>
+                {rank}
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main id="main" className="min-h-0 flex-1 px-4 py-4">
+      <main id="main" className="game-scroll">
         {tab === 'firm' ? <CompanyDesk view={view} t={t} locale={locale} onAct={act} /> : null}
         {tab === 'shop' ? <ShopDesk view={view} t={t} onAct={act} /> : null}
         {tab === 'table' ? <Standings view={view} t={t} locale={locale} /> : null}
-        {error ? <p className="mt-4 text-sm font-semibold text-copper">{t(`error.${error}`)}</p> : null}
+        {error && tab !== 'table' ? <p className="mt-4 text-sm font-semibold text-copper">{t(`error.${error}`)}</p> : null}
       </main>
 
       <CardStage view={view} t={t} locale={locale} error={error} onAct={act} />
 
       <nav className="dock fixed bottom-0 left-1/2 z-20 w-full max-w-lg -translate-x-1/2">
         <div className="grid grid-cols-3 items-stretch text-center">
-          <NavTab label={t('nav.firm')} active={tab === 'firm'} onClick={() => setTab('firm')} icon="firm" />
-          <NavTab label={t('nav.table')} active={tab === 'table'} onClick={() => setTab('table')} icon="table" />
-          <NavTab label={t('nav.shop')} active={tab === 'shop'} onClick={() => setTab('shop')} icon="shop" />
+          <NavTab
+            label={t('nav.firm')}
+            active={tab === 'firm'}
+            onClick={() => {
+              setError(null)
+              setTab('firm')
+            }}
+            icon="firm"
+          />
+          <NavTab
+            label={t('nav.table')}
+            active={tab === 'table'}
+            onClick={() => {
+              setError(null)
+              setTab('table')
+            }}
+            icon="table"
+          />
+          <NavTab
+            label={t('nav.shop')}
+            active={tab === 'shop'}
+            onClick={() => {
+              setError(null)
+              setTab('shop')
+            }}
+            icon="shop"
+          />
         </div>
       </nav>
     </div>
-  )
-}
-
-function CoinMark() {
-  return (
-    <Image
-      src="/art/ui/coin.png"
-      alt=""
-      width={22}
-      height={22}
-      className="h-5 w-5 shrink-0 rounded-full object-cover"
-      aria-hidden
-    />
-  )
-}
-
-function CrownMark() {
-  return (
-    <svg viewBox="0 0 32 22" className="brand-crown h-5 w-8" aria-hidden>
-      <path
-        d="M3 17 L6 6 L12 12 L16 3 L20 12 L26 6 L29 17 Z"
-        fill="#f0b429"
-        stroke="#8a5a18"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <rect x="4" y="17" width="24" height="3.5" rx="1" fill="#f0b429" stroke="#8a5a18" strokeWidth="1.2" />
-      <circle cx="6" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-      <circle cx="16" cy="3" r="1.45" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-      <circle cx="26" cy="6" r="1.35" fill="#fff1b8" stroke="#8a5a18" strokeWidth="0.8" />
-    </svg>
   )
 }
 
@@ -188,57 +197,21 @@ function NavTab({
   onClick: () => void
   icon: 'firm' | 'table' | 'shop'
 }) {
+  const tone = active ? '#f0b429' : '#b8956a'
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`nav-tab flex flex-col items-center gap-1.5 px-2 py-3 ${active ? 'is-active' : ''}`}
+      className={`nav-tab flex flex-col items-center gap-1 px-2 py-2 ${active ? 'is-active' : ''}`}
     >
       <span className={`nav-tab-icon ${active ? 'is-active' : ''}`}>
-        <NavIcon kind={icon} active={active} />
+        {icon === 'firm' ? <FirmNavIcon color={tone} /> : null}
+        {icon === 'table' ? <TableNavIcon color={tone} /> : null}
+        {icon === 'shop' ? <ShopNavIcon color={tone} /> : null}
       </span>
-      <span className={`font-display text-sm leading-none ${active ? 'text-[#f0b429]' : 'text-[#b8956a]'}`}>{label}</span>
+      <span className={`font-display text-[0.8rem] leading-none ${active ? 'text-[#f0b429]' : 'text-[#b8956a]'}`}>{label}</span>
       <span className={`nav-tab-line ${active ? 'is-active' : ''}`} aria-hidden />
     </button>
-  )
-}
-
-function NavIcon({ kind, active }: { kind: 'firm' | 'table' | 'shop'; active: boolean }) {
-  const tone = active ? '#f0b429' : '#b8956a'
-  if (kind === 'firm') {
-    return (
-      <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden>
-        <path
-          fill={tone}
-          d="M4.2 17.2 5.6 9.4l3.1 3.2L12 5.8l3.3 6.8 3.1-3.2 1.4 7.8H4.2Zm.5 1.5h14.6c.4 0 .7.3.7.7v.4c0 .2-.2.4-.4.4H4.4c-.2 0-.4-.2-.4-.4v-.4c0-.4.3-.7.7-.7Z"
-        />
-      </svg>
-    )
-  }
-  if (kind === 'table') {
-    return (
-      <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden>
-        <path
-          d="M8.2 4.5h7.6v4.2c0 2.1-1.7 3.8-3.8 3.8h0c-2.1 0-3.8-1.7-3.8-3.8V4.5Z"
-          stroke={tone}
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-        />
-        <path d="M8.2 6.2H5.4c-.7 0-1.2.7-.9 1.3.5 1.1 1.6 1.8 2.8 1.8" stroke={tone} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M15.8 6.2h2.8c.7 0 1.2.7.9 1.3-.5 1.1-1.6 1.8-2.8 1.8" stroke={tone} strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M10.2 16.2h3.6v1.6h-3.6zM9.2 17.8h5.6v1.5H9.2z" stroke={tone} strokeWidth="1.8" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" aria-hidden>
-      <rect x="4.5" y="5.5" width="10" height="13.5" rx="1.6" stroke={tone} strokeWidth="1.8" />
-      <rect x="9.5" y="3.5" width="10" height="13.5" rx="1.6" stroke={tone} strokeWidth="1.8" />
-      <path
-        d="M14.5 8.2 15.1 9.6l1.5.2-1.1 1 .3 1.5-1.3-.8-1.3.8.3-1.5-1.1-1 1.5-.2z"
-        fill={tone}
-      />
-    </svg>
   )
 }
 
@@ -261,7 +234,7 @@ function CardStage({
   if (!card && !note) return null
   const sabotage = card?.pile === 'sabotage'
   return (
-    <div className="fixed inset-0 z-30 flex items-end justify-center bg-[#1c140c]/55 px-5 pb-28 pt-8 sm:items-center sm:pb-8">
+    <div className="fixed inset-0 z-30 flex items-end justify-center bg-[#1c140c]/55 px-5 pb-24 pt-8 sm:items-center sm:pb-8">
       <section
         className="sheet w-full max-w-sm px-5 py-5"
         style={{
@@ -316,25 +289,33 @@ function Standings({ view, t, locale }: { view: GameView; t: Translator; locale:
   return (
     <div>
       <h2 className="font-display text-3xl text-ink">{t('nav.table')}</h2>
-      <ol className="mt-4 space-y-3">
-        {view.players.map((player, index) => (
-          <li key={player.id} className="sheet flex items-center justify-between gap-4 px-4 py-3.5">
-            <span className="min-w-0 text-lg leading-snug">
-              <span className="font-semibold text-muted">{index + 1}.</span>{' '}
-              <span className="font-bold text-ink">{player.name}</span>
-              {player.isYou ? <span className="font-semibold text-muted"> · {t('common.you')}</span> : null}
-            </span>
-            <span className="shrink-0 font-display text-2xl tabular-nums leading-none text-wood">
-              <LiveFirm
-                machines={player.machines}
-                effects={player.effects}
-                initial={player.companyValue}
-                mask={player.isYou}
-                locale={locale}
-              />
-            </span>
-          </li>
-        ))}
+      <ol className="standings-list mt-4 space-y-3">
+        {view.players.map((player, index) => {
+          const place = index + 1
+          const tone = place === 1 ? 'is-first' : place === 2 ? 'is-second' : place === 3 ? 'is-third' : 'is-rest'
+          return (
+            <li key={player.id} className={`standings-row ${tone} flex items-center justify-between gap-4 px-4 py-3.5`}>
+              <span className="flex min-w-0 items-center gap-3 text-lg leading-snug">
+                <span className={`place-badge ${tone}`} aria-hidden>
+                  {place}
+                </span>
+                <span className="min-w-0">
+                  <span className="font-bold text-ink">{player.name}</span>
+                  {player.isYou ? <span className="font-semibold text-muted"> · {t('common.you')}</span> : null}
+                </span>
+              </span>
+              <span className="shrink-0 font-display text-2xl tabular-nums leading-none text-wood">
+                <LiveFirm
+                  machines={player.machines}
+                  effects={player.effects}
+                  initial={player.companyValue}
+                  mask={player.isYou}
+                  locale={locale}
+                />
+              </span>
+            </li>
+          )
+        })}
       </ol>
     </div>
   )

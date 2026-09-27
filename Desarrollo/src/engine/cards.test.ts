@@ -10,6 +10,8 @@ function table() {
   const state = createGame({ code: 'SHOP', hostToken: 'host', now })
   const ana = addPlayer(state, { name: 'Ana', token: 'ana', now })
   const bo = addPlayer(state, { name: 'Bo', token: 'bo', now })
+  addPlayer(state, { name: 'Cata', token: 'cata', now })
+  addPlayer(state, { name: 'Dani', token: 'dani', now })
   if ('error' in ana || 'error' in bo) throw new Error('seat')
   const started = startGame(state, now)
   if (!started.ok) throw new Error(started.error)
@@ -17,9 +19,9 @@ function table() {
 }
 
 describe('shop cards', () => {
-  it('charges 50% of the next machine and sends the card', () => {
+  it('charges 40% of the next machine and sends the card', () => {
     const { state, ana, bo } = table()
-    ana.cash = 200
+    ana.cash = 400
     const price = cardPrice(ana.machines)
     expect(price).toBe(100)
     const bought = applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'sabotage' }, now)
@@ -27,7 +29,7 @@ describe('shop cards', () => {
     expect(ana.hand).toHaveLength(1)
     expect(ana.hand[0]?.pile).toBe('sabotage')
     expect(SABOTAGE_KINDS).toContain(ana.hand[0]?.kind)
-    expect(ana.cash).toBe(100)
+    expect(ana.cash).toBe(300)
 
     const card = ana.hand[0]
     const sent = applyAction(state, { kind: 'send_card', playerId: ana.id, cardId: card.id, toId: bo.id }, now)
@@ -40,12 +42,12 @@ describe('shop cards', () => {
     const { state, ana, bo } = table()
     ana.cash = 2_000
     const kinds = new Set<string>()
-    for (let i = 0; i < 12; i++) {
-      applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now)
+    for (let i = 0; i < 2; i++) {
+      const bought = applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now)
+      expect(bought.ok).toBe(true)
       kinds.add(ana.hand.at(-1)?.kind ?? '')
     }
     expect([...kinds].every((kind) => (DEFENSE_KINDS as readonly string[]).includes(kind))).toBe(true)
-    expect(kinds.size).toBeGreaterThan(1)
     const card = ana.hand[0]
     const sent = applyAction(state, { kind: 'send_card', playerId: ana.id, cardId: card.id, toId: bo.id }, now)
     expect(sent).toEqual({ ok: false, error: 'not_sabotage' })
@@ -71,6 +73,33 @@ describe('shop cards', () => {
       error: 'max_active_defenses',
     })
     expect(ana.hand.map((card) => card.id)).toEqual(['d3'])
+  })
+
+  it('caps sabotage and defense holdings at two each', () => {
+    const { state, ana } = table()
+    ana.cash = 10_000
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'sabotage' }, now).ok).toBe(true)
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'sabotage' }, now).ok).toBe(true)
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'sabotage' }, now)).toEqual({
+      ok: false,
+      error: 'max_sabotage_cards',
+    })
+    expect(ana.hand.filter((card) => card.pile === 'sabotage')).toHaveLength(2)
+
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now).ok).toBe(true)
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now).ok).toBe(true)
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now)).toEqual({
+      ok: false,
+      error: 'max_defense_cards',
+    })
+    expect(ana.hand.filter((card) => card.pile === 'defense')).toHaveLength(2)
+
+    const defense = ana.hand.find((card) => card.pile === 'defense')!
+    expect(applyAction(state, { kind: 'activate_card', playerId: ana.id, cardId: defense.id }, now).ok).toBe(true)
+    expect(applyAction(state, { kind: 'buy_card', playerId: ana.id, pile: 'defense' }, now)).toEqual({
+      ok: false,
+      error: 'max_defense_cards',
+    })
   })
 
   it('refuses a card when there is not enough cash', () => {

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { assetValue, canBuyMachine, firmValue, incomeOf, MACHINE_LIST, minuteIncome, ratePerSecond, upgradePrice, workerPrice } from './machines'
+import {
+  assetValue,
+  canBuyMachine,
+  firmValue,
+  incomeOf,
+  INCOME_SCALE,
+  MACHINE_LIST,
+  minuteIncome,
+  ratePerSecond,
+  upgradePrice,
+  workerPrice,
+} from './machines'
 import type { Machine } from './types'
 
 const start = Date.parse('2026-09-23T18:00:00.000Z')
@@ -8,30 +19,38 @@ const first: Machine = { id: 'm1', kind: 'machinucha', since, workers: 1, upgrad
 const second: Machine = { id: 'm2', kind: 'maquinita', since, workers: 0, upgrades: 0, owned: false }
 
 describe('machines', () => {
-  it('pays the first machine 4 per second with the starting worker', () => {
+  it('pays the first machine faster with the starting worker', () => {
     expect(incomeOf([first], start + 999, true)).toBe(0)
-    expect(incomeOf([first], start + 1_000, true)).toBe(4)
-    expect(incomeOf([first], start + 3_000, true)).toBe(12)
+    expect(incomeOf([first], start + 1_000, true)).toBeCloseTo(4.5 * INCOME_SCALE)
+    expect(incomeOf([first], start + 3_000, true)).toBeCloseTo(13.5 * INCOME_SCALE)
   })
 
-  it('adds the base rate on each upgrade, then doubles it per worker', () => {
-    expect(ratePerSecond({ ...first, upgrades: 1 })).toBe(8)
-    expect(ratePerSecond({ ...first, upgrades: 2 })).toBe(12)
-    expect(ratePerSecond({ ...first, upgrades: 5 })).toBe(24)
-    expect(ratePerSecond({ ...first, upgrades: 1, workers: 2 })).toBe(16)
-    expect(ratePerSecond({ ...first, upgrades: 5, workers: 5 })).toBe(384)
+  it('adds the base rate on each upgrade, then a linear bonus per worker', () => {
+    expect(ratePerSecond({ ...first, upgrades: 1 })).toBeCloseTo(9 * INCOME_SCALE)
+    expect(ratePerSecond({ ...first, upgrades: 2 })).toBeCloseTo(13.5 * INCOME_SCALE)
+    expect(ratePerSecond({ ...first, upgrades: 5 })).toBeCloseTo(27 * INCOME_SCALE)
+    expect(ratePerSecond({ ...first, upgrades: 1, workers: 2 })).toBeCloseTo(12 * INCOME_SCALE)
+    expect(ratePerSecond({ ...first, upgrades: 5, workers: 5 })).toBeCloseTo(63 * INCOME_SCALE)
   })
 
   it('matches the top rates with five upgrades and five workers', () => {
-    const tops = [384, 1_920, 6_720, 19_200, 53_760, 144_000, 384_000, 1_056_000, 2_688_000, 7_680_000]
-    MACHINE_LIST.filter((spec) => !spec.endsGame).forEach((spec, index) => {
+    const tops = [63, 252, 840, 2_520, 6_930, 18_480, 48_300, 121_800, 315_000, 798_000]
+    MACHINE_LIST.forEach((spec, index) => {
       const machine: Machine = { id: spec.kind, kind: spec.kind, since, workers: 5, upgrades: 5, owned: true }
-      expect(ratePerSecond(machine)).toBe(tops[index])
+      expect(ratePerSecond(machine)).toBeCloseTo(tops[index]! * INCOME_SCALE)
     })
   })
 
+  it('keeps starter upgrades cheap and scales later machines', () => {
+    expect(upgradePrice({ ...first, upgrades: 0 })).toBe(18)
+    expect(upgradePrice({ ...first, upgrades: 1 })).toBe(35)
+    expect(upgradePrice({ id: 'm2', kind: 'maquinita', since, workers: 1, upgrades: 0, owned: true })).toBe(180)
+    expect(upgradePrice({ id: 'm3', kind: 'chunga', since, workers: 1, upgrades: 0, owned: true })).toBe(840)
+    expect(upgradePrice({ id: 'm3', kind: 'chunga', since, workers: 1, upgrades: 2, owned: true })).toBe(2_500)
+  })
+
   it('prices five upgrades and four extra workers from the starting worker', () => {
-    MACHINE_LIST.filter((spec) => !spec.endsGame).forEach((spec) => {
+    MACHINE_LIST.forEach((spec) => {
       const machine: Machine = { id: spec.kind, kind: spec.kind, since, workers: 1, upgrades: 0, owned: true }
       let spent = spec.value
       for (let level = 0; level < 5; level++) spent += upgradePrice({ ...machine, upgrades: level })
@@ -50,8 +69,8 @@ describe('machines', () => {
   })
 
   it('values the firm as machines + workers + income per minute', () => {
-    expect(assetValue([first])).toBe(1_040)
-    expect(minuteIncome([first])).toBe(240)
-    expect(firmValue([first])).toBe(1_280)
+    expect(assetValue([first])).toBe(1_050)
+    expect(minuteIncome([first])).toBeCloseTo(270 * INCOME_SCALE)
+    expect(firmValue([first])).toBeCloseTo(1_050 + 270 * INCOME_SCALE)
   })
 })

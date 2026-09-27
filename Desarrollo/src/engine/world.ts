@@ -1,12 +1,17 @@
 import { settleAll } from './effects'
-import { endsTheGame, isMachineKind, MACHINE_LIST, MAX_PLAYERS, MAX_UPGRADES, MAX_WORKERS, MIN_PLAYERS, START_WORKERS } from './machines'
+import { firmValue, isMachineKind, MACHINE_LIST, MAX_PLAYERS, MAX_UPGRADES, MAX_WORKERS, MIN_PLAYERS, START_WORKERS } from './machines'
 import { MAX_ACTIVE_DEFENSES } from './cards'
 import { createRng } from './rng'
 import type { GameConfig, GameState, LogEntry, LogKind, Machine, Player } from './types'
 
+/** 15 minutes — paced so ~9/10 machines land near minute 13. */
+export const DEFAULT_DURATION_MS = 15 * 60 * 1000
+const LEGACY_DURATION_MS = 10 * 60 * 1000
+
 export const DEFAULT_CONFIG: GameConfig = {
   startingCash: 0,
   seed: 1,
+  durationMs: DEFAULT_DURATION_MS,
 }
 
 export function nextId(state: { rng: number }, prefix: string): string {
@@ -57,6 +62,10 @@ export function migrateCatalogue(state: GameState): boolean {
   }
   if (!state.config) {
     state.config = { ...DEFAULT_CONFIG }
+    changed = true
+  }
+  if (state.config.durationMs == null || state.config.durationMs <= 0 || state.config.durationMs === LEGACY_DURATION_MS) {
+    state.config.durationMs = DEFAULT_DURATION_MS
     changed = true
   }
   if (state.config.startingCash !== 0) {
@@ -129,8 +138,12 @@ export function migrateCatalogue(state: GameState): boolean {
       }
       continue
     }
-    const catalogue = player.machines.length > 0 && player.machines.every((machine) => isMachineKind(machine.kind))
-    if (!catalogue) {
+    const kept = player.machines.filter((machine) => isMachineKind(machine.kind))
+    if (kept.length !== player.machines.length) {
+      player.machines = kept
+      changed = true
+    }
+    if (player.machines.length === 0) {
       player.machines = freshMachines(state, now)
       changed = true
       continue
@@ -185,11 +198,25 @@ export function migrateCatalogue(state: GameState): boolean {
     changed = true
   }
   if (settleAll(state, now)) changed = true
-  if (state.status === 'running' && state.players.some((owner) => owner.machines?.some((machine) => machine.owned && endsTheGame(machine.kind)))) {
-    finishGame(state, now)
-    changed = true
-  }
+  if (maybeFinishByTime(state, now)) changed = true
   return changed
+}
+
+/** Epoch ms when the clock hits zero, or null if not started. */
+export function gameEndsAtMs(state: GameState): number | null {
+  if (!state.startedAt) return null
+  const duration = state.config?.durationMs ?? DEFAULT_DURATION_MS
+  return Date.parse(state.startedAt) + duration
+}
+
+/** Ends a running partida when the match clock expires. Winner = highest firm value. */
+export function maybeFinishByTime(state: GameState, now: string): boolean {
+  if (state.status !== 'running') return false
+  const endsAt = gameEndsAtMs(state)
+  if (endsAt == null) return false
+  if (Date.parse(now) < endsAt) return false
+  finishGame(state, now)
+  return true
 }
 
 export function createGame(opts: {
@@ -285,6 +312,10 @@ export function finishGame(state: GameState, now: string): { ok: true } | { ok: 
   settleAll(state, now)
   state.status = 'finished'
   state.finishedAt = now
+  state.standings = state.players
+    .map((player) => ({ playerId: player.id, name: player.name, total: firmValue(player.machines) }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+    .map((row, index) => ({ ...row, position: index + 1 }))
   logEvent(state, 'game_finished', 'public', {}, now)
   return { ok: true }
 }
